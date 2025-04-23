@@ -49,3 +49,5 @@ def main():
 
 if __name__ == "__main__":
     exit(main())
+
+    """python run_spider.py --addresses addresses.txt --proxy http://user:pass@proxy.example.com:8080 --output json --output-file geocoded_addresses"""
