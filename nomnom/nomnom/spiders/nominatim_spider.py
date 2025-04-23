@@ -4,19 +4,26 @@ import urllib.parse
 from scrapy.exceptions import CloseSpider
 import logging
 from pathlib import Path
-
+from fake_useragent import UserAgent
+ua=UserAgent()
 
 class NominatimSpider(scrapy.Spider):
     name = 'nominatim'
     allowed_domains = ['nominatim.openstreetmap.org']
     
+   
     # Custom settings for this spider
     custom_settings = {
         'LOG_FILE': 'nominatim_logger.log',  # Log file location
         'LOG_LEVEL': 'INFO',                 # Log level
         'DOWNLOAD_DELAY': 1,                 # Respect Nominatim usage policy (1 req/sec)
-        'USER_AGENT': 'Mozilla/5.0 (compatible; YourApp/1.0; +http://yourwebsite.com)',
+        'USER_AGENT':ua.edge ,
+        # Explicitly enable the pipeline in the spider's custom settings
+        'ITEM_PIPELINES': {
+            'nominatim_scraper.pipelines.NominatimScraperPipeline': 300,
+        },
     }
+    
     
     def __init__(self, address_file=None, proxy=None, *args, **kwargs):
         super(NominatimSpider, self).__init__(*args, **kwargs)
@@ -24,7 +31,7 @@ class NominatimSpider(scrapy.Spider):
         
         # If a proxy is specified, configure it
         if proxy:
-            self.logger.info(f"Using proxy: {proxy}")
+            self.logger.info(f"Using proxy")
             self.custom_settings['DOWNLOADER_MIDDLEWARES'] = {
                 'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 110,
             }
@@ -55,6 +62,15 @@ class NominatimSpider(scrapy.Spider):
             # URL encode the address
             encoded_address = urllib.parse.quote(address)
             url = f"https://nominatim.openstreetmap.org/search?q={encoded_address}&format=json&addressdetails=1&limit=1"
+            
+
+            # Create request meta with the address
+            meta = {'address': address}
+            
+            # Add proxy to meta if specified (this is the key fix)
+            if self.proxy:
+                meta['proxy'] = self.proxy
+            
             
             # Add our address as metadata so we can reference it in the callback
             yield scrapy.Request(
